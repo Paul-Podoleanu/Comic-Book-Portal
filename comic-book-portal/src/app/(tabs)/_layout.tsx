@@ -48,6 +48,16 @@ export default function TabsLayout() {
                     ),
                 }}
             />
+            <Tabs.Screen
+                name="testReader"
+                options={{
+                    title: "Test Reader",
+                    headerShown: false,
+                    tabBarIcon: ({ focused }) => (
+                        <TabIcon focused={focused} icon={icons.play} title="Test Reader" />
+                    ),
+                }}
+            />
         </Tabs>
     );
 }
