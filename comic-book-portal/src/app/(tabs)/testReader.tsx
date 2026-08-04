@@ -1,46 +1,22 @@
 import { useCallback, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, Text, View } from "react-native";
+import {
+    ActivityIndicator,
+    Alert,
+    Dimensions,
+    Pressable,
+    ScrollView,
+    Text,
+    View,
+} from "react-native";
 import { Image } from "expo-image";
-import PagerView from "react-native-pager-view";
 import * as DocumentPicker from "expo-document-picker";
-import * as FileSystem from "expo-file-system/legacy";
+import * as LegacyFileSystem from "expo-file-system/legacy";
+import { Directory, File, Paths } from "expo-file-system";
 import { unzipSync } from "fflate";
 import "./../globals.css";
 
 const IMAGE_EXT = /\.(jpe?g|png|gif|webp|bmp)$/i;
-
-const B64_CHARS =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
-function bytesToBase64(bytes: Uint8Array): string {
-    let out = "";
-    for (let i = 0; i < bytes.length; i += 3) {
-        const b0 = bytes[i];
-        const b1 = bytes[i + 1];
-        const b2 = bytes[i + 2];
-        out += B64_CHARS[b0 >> 2];
-        out += B64_CHARS[((b0 & 0x03) << 4) | (b1 === undefined ? 0 : b1 >> 4)];
-        out += b1 === undefined ? "=" : B64_CHARS[((b1 & 0x0f) << 2) | (b2 === undefined ? 0 : b2 >> 6)];
-        out += b2 === undefined ? "=" : B64_CHARS[b2 & 0x3f];
-    }
-    return out;
-}
-
-function base64ToBytes(base64: string): Uint8Array {
-    const clean = base64.replace(/=+$/, "");
-    const bytes: number[] = [];
-    let buffer = 0;
-    let bits = 0;
-    for (let i = 0; i < clean.length; i++) {
-        buffer = (buffer << 6) | B64_CHARS.indexOf(clean[i]);
-        bits += 6;
-        if (bits >= 8) {
-            bits -= 8;
-            bytes.push((buffer >> bits) & 0xff);
-        }
-    }
-    return new Uint8Array(bytes);
-}
+const SCREEN_WIDTH = Dimensions.get("window").width;
 
 function naturalCompare(a: string, b: string) {
     return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
@@ -70,15 +46,15 @@ export default function TestReader() {
         setPageIndex(0);
 
         try {
-            const cacheDir = FileSystem.cacheDirectory!;
-            const archiveUri = `${cacheDir}picked.cbz`;
+            // The picker's URI can be a content:// SAF URI that the new File API
+            // can't open directly, so copy it into our sandbox with the legacy API
+            // first. Everything after that is a plain file:// path we own, so we
+            // can read/write it as raw bytes (no base64) with the new File API.
+            const archiveUri = `${LegacyFileSystem.cacheDirectory}picked.cbz`;
+            await LegacyFileSystem.copyAsync({ from: asset.uri, to: archiveUri });
 
-            await FileSystem.copyAsync({ from: asset.uri, to: archiveUri });
-
-            const base64 = await FileSystem.readAsStringAsync(archiveUri, {
-                encoding: FileSystem.EncodingType.Base64,
-            });
-            const bytes = base64ToBytes(base64);
+            const archive = new File(archiveUri);
+            const bytes = await archive.bytes();
             const entries = unzipSync(bytes);
 
             const imageNames = Object.keys(entries)
@@ -91,20 +67,16 @@ export default function TestReader() {
                 return;
             }
 
-            const outDir = `${cacheDir}cbz-test/`;
-            await FileSystem.deleteAsync(outDir, { idempotent: true });
-            await FileSystem.makeDirectoryAsync(outDir, { intermediates: true });
+            const outDir = new Directory(Paths.cache, "cbz-test");
+            if (outDir.exists) outDir.delete();
+            outDir.create({ intermediates: true });
 
-            const uris: string[] = [];
-            for (let i = 0; i < imageNames.length; i++) {
-                const name = imageNames[i];
+            const uris = imageNames.map((name, i) => {
                 const ext = name.match(IMAGE_EXT)?.[0] ?? ".jpg";
-                const pageUri = `${outDir}page-${i}${ext}`;
-                await FileSystem.writeAsStringAsync(pageUri, bytesToBase64(entries[name]), {
-                    encoding: FileSystem.EncodingType.Base64,
-                });
-                uris.push(pageUri);
-            }
+                const outFile = new File(outDir, `page-${i}${ext}`);
+                outFile.write(entries[name]);
+                return outFile.uri;
+            });
 
             setComicName(asset.name);
             setPages(uris);
@@ -125,13 +97,13 @@ export default function TestReader() {
                     className="bg-[#FFCC00] rounded-md py-3 items-center"
                     disabled={loading}
                 >
-                    <Text className="text-[#151312] font-semibold">
+                    <Text className="text-[#151312] font-semibold items-center">
                         {loading ? "Opening..." : "Pick a .cbz file"}
                     </Text>
                 </Pressable>
                 {comicName && (
-                    <Text className="text-white/70 mt-2" numberOfLines={1}>
-                        {comicName} — page {pageIndex + 1} / {pages.length}
+                    <Text className="text-white/70 mt-10 text-center" numberOfLines={1}>
+                        page {pageIndex + 1} / {pages.length}
                     </Text>
                 )}
             </View>
@@ -143,13 +115,23 @@ export default function TestReader() {
             )}
 
             {!loading && pages.length > 0 && (
-                <PagerView
-                    className="flex-1"
-                    initialPage={0}
-                    onPageSelected={(e) => setPageIndex(e.nativeEvent.position)}
+                <ScrollView
+                    horizontal
+                    pagingEnabled
+                    showsHorizontalScrollIndicator={false}
+                    onMomentumScrollEnd={(e) => {
+                        const index = Math.round(
+                            e.nativeEvent.contentOffset.x / SCREEN_WIDTH
+                        );
+                        setPageIndex(index);
+                    }}
                 >
                     {pages.map((uri) => (
-                        <View key={uri} className="flex-1 items-center justify-center">
+                        <View
+                            key={uri}
+                            style={{ width: SCREEN_WIDTH }}
+                            className="flex-1 items-center justify-center"
+                        >
                             <Image
                                 source={{ uri }}
                                 style={{ width: "100%", height: "100%" }}
@@ -157,7 +139,7 @@ export default function TestReader() {
                             />
                         </View>
                     ))}
-                </PagerView>
+                </ScrollView>
             )}
 
             {!loading && pages.length === 0 && (
