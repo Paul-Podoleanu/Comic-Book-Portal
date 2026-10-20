@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import java.lang.*?>
+<?import java.util.*?>
+<?import javafx.scene.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<AnchorPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="comicportaldesktop.controllers.ComicCollectionController"
+            prefHeight="400.0" prefWidth="600.0">
+
+    <VBox alignment="CENTER" spacing="12.0"
+          AnchorPane.bottomAnchor="0.0"
+          AnchorPane.leftAnchor="0.0"
+          AnchorPane.rightAnchor="0.0"
+          AnchorPane.topAnchor="0.0">
+    <Label text="Comic Reader" style="-fx-font-size: 28px; -fx-font-weight: bold;"/>
+
+        <Button text="Select Comic Folder" maxWidth="200" onAction="#displayComics"/>
+
+        <Button text="Remove all saved folders" maxWidth="200" onAction="#removeSavedFolders"/>
+
+        <ScrollPane fitToWidth="true"
+                    prefWidth="900.0"
+                    prefHeight="500.0">
+            <content>
+                <TilePane fx:id="comicGrid"
+                          hgap="20.0"
+                          vgap="20.0"
+                          prefColumns="4">
+                    <padding>
+                        <Insets top="20.0"
+                                right="20.0"
+                                bottom="20.0"
+                                left="20.0"/>
+                    </padding>
+                </TilePane>
+            </content>
+        </ScrollPane>
+
+        <Label fx:id="comicStatusLabel"
+               text="No comic folder selected."
+               wrapText="true"/>
+
+    </VBox>
+
+</AnchorPane>

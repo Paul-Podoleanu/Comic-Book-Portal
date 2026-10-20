@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane fx:id="root"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="comicportaldesktop.HomeController"
+            stylesheets="@sidebar.css"
+            styleClass="app-root">
+
+    <left>
+        <VBox prefWidth="220.0" spacing="10.0" styleClass="sidebar">
+            <Label text="Comic Portal" styleClass="sidebar-title" />
+
+            <Button fx:id="homeButton" text="Home" maxWidth="Infinity"
+                    styleClass="sidebar-button" onAction="#openHomeScreen"/>
+            <Button fx:id="comicsButton" text="Comic Reader" maxWidth="Infinity"
+                    styleClass="sidebar-button" onAction="#openComicReader" />
+            <Button fx:id="favoritesButton" text="Favorites"
+                    maxWidth="Infinity" styleClass="sidebar-button"
+                    onAction="#openFavoritesScreen" />
+            <Button fx:id="timelinesButton" text="Timelines" maxWidth="Infinity"
+                    styleClass="sidebar-button" onAction="#openTimelinesPage" />
+            <Button text="Settings" maxWidth="Infinity" styleClass="sidebar-button" />
+        </VBox>
+    </left>
+
+    <center>
+        <!-- Main page content -->
+    </center>
+
+</BorderPane>
